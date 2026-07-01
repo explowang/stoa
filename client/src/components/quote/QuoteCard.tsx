@@ -56,6 +56,18 @@ export function QuoteCard({ quote, onNext, showActions = true }: QuoteCardProps)
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="max-w-3xl mx-auto text-center"
         >
+          {/* Image */}
+          {quote.imageUrl && (
+            <div className="mb-8">
+              <img
+                src={quote.imageUrl}
+                alt={quote.content}
+                className="w-full h-64 object-cover rounded-lg shadow-lg"
+                loading="lazy"
+              />
+            </div>
+          )}
+
           {/* Quote Content */}
           <blockquote className="mb-8">
             <p className="quote-text text-2xl md:text-3xl lg:text-4xl leading-relaxed mb-6">
