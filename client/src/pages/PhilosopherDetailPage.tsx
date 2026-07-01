@@ -226,6 +226,16 @@ export function PhilosopherDetailPage() {
                   key={quote.id}
                   className="card-classical p-6 hover:shadow-md transition-shadow duration-300"
                 >
+                  {quote.imageUrl && (
+                    <div className="mb-4 aspect-video w-full">
+                      <img
+                        src={quote.imageUrl}
+                        alt={quote.content}
+                        className="w-full h-full object-cover rounded-lg"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
                   <blockquote className="mb-4">
                     <p className="font-serif-cn text-lg text-ink-800 leading-relaxed">
                       "{quote.content}"

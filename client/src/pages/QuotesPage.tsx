@@ -177,6 +177,17 @@ function QuoteItem({
       }}
       className="card-classical p-8 hover:shadow-md transition-shadow duration-300"
     >
+      {quote.imageUrl && (
+        <div className="mb-6 aspect-video w-full">
+          <img
+            src={quote.imageUrl}
+            alt={quote.content}
+            className="w-full h-full object-cover rounded-lg"
+            loading="lazy"
+          />
+        </div>
+      )}
+
       <blockquote className="mb-6">
         <p className="font-serif-cn text-xl text-ink-800 leading-relaxed">
           "{quote.content}"

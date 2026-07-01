@@ -58,11 +58,11 @@ export function QuoteCard({ quote, onNext, showActions = true }: QuoteCardProps)
         >
           {/* Image */}
           {quote.imageUrl && (
-            <div className="mb-8">
+            <div className="mb-8 aspect-video w-full max-w-2xl mx-auto">
               <img
                 src={quote.imageUrl}
                 alt={quote.content}
-                className="w-full h-64 object-cover rounded-lg shadow-lg"
+                className="w-full h-full object-cover rounded-lg shadow-lg"
                 loading="lazy"
               />
             </div>
