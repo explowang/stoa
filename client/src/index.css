@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@theme {
+  --color-marble-50: #fafaf8;
+  --color-marble-100: #f5f4f0;
+  --color-marble-200: #e8e6dc;
+  --color-marble-300: #d4d1c4;
+  --color-marble-400: #b0aea5;
+  --color-marble-500: #8a877c;
+
+  --color-terracotta-50: #fdf5f3;
+  --color-terracotta-100: #fbe8e3;
+  --color-terracotta-200: #f7d5cb;
+  --color-terracotta-300: #f0b8a7;
+  --color-terracotta-400: #e6927a;
+  --color-terracotta-500: #d97757;
+  --color-terracotta-600: #c55d3c;
+
+  --color-aegean-50: #f0f7fc;
+  --color-aegean-100: #daedf8;
+  --color-aegean-200: #b9dff3;
+  --color-aegean-300: #89c9e9;
+  --color-aegean-400: #5aaddb;
+  --color-aegean-500: #6a9bcc;
+  --color-aegean-600: #4a85b5;
+
+  --color-ink-50: #f6f6f5;
+  --color-ink-100: #e7e6e3;
+  --color-ink-200: #d1cfc9;
+  --color-ink-300: #b4b1a7;
+  --color-ink-400: #928e81;
+  --color-ink-500: #777468;
+  --color-ink-600: #605e55;
+  --color-ink-700: #4f4d46;
+  --color-ink-800: #3d3c37;
+  --color-ink-900: #2a2926;
+  --color-ink-950: #1a1917;
+
+  --color-cream: #faf9f5;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-ink-900);
+  font-family: "Noto Serif SC", "Source Han Serif SC", SimSun, serif;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+.quote-text {
+  font-family: "Noto Serif SC", "Source Han Serif SC", SimSun, serif;
+  color: var(--color-ink-900);
+  line-height: 1.8;
+}
+
+.quote-text-en {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  color: var(--color-ink-800);
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.attribution {
+  font-family: "Noto Serif SC", "Source Han Serif SC", SimSun, serif;
+  color: var(--color-ink-500);
+  letter-spacing: 0.05em;
+}
+
+.card-classical {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(4px);
+  border-radius: 2px;
+  border: 1px solid rgba(42, 41, 38, 0.08);
+  box-shadow: 0 4px 24px rgba(42, 41, 38, 0.04);
+}
+
+.btn-classical {
+  padding: 0.75rem 1.5rem;
+  font-family: "Noto Serif SC", "Source Han Serif SC", SimSun, serif;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--color-ink-200);
+  color: var(--color-ink-700);
+  transition: all 0.3s ease-out;
+  cursor: pointer;
+  background: transparent;
+}
+
+.btn-classical:hover {
+  background-color: var(--color-ink-900);
+  color: white;
+  border-color: var(--color-ink-900);
+}
+
+.btn-classical-ghost {
+  padding: 0.75rem 1.5rem;
+  font-family: "Noto Serif SC", "Source Han Serif SC", SimSun, serif;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-600);
+  transition: color 0.3s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.btn-classical-ghost:hover {
+  color: var(--color-ink-900);
+}
+
+.tag-theme {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-family: "Noto Serif SC", "Source Han Serif SC", SimSun, serif;
+  background-color: var(--color-marble-100);
+  color: var(--color-ink-600);
+  border-radius: 9999px;
+  transition: background-color 0.2s;
+}
+
+.tag-theme:hover {
+  background-color: var(--color-marble-200);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
