@@ -18,45 +18,7 @@ function getDatabase(): postgres.Sql {
   return sql;
 }
 
-interface Philosopher {
-  id: string;
-  name: string;
-  nameEn: string;
-  nameGreek?: string;
-  birthYear: number;
-  deathYear: number;
-  school: string;
-  schoolEn: string;
-  region: string;
-  biography: string;
-  coreIdeas: string[];
-  portrait: string;
-}
-
-type Theme = string;
-
-interface Quote {
-  id: string;
-  philosopherId: string;
-  content: string;
-  contentOriginal?: string;
-  source: string;
-  sourceWork?: string;
-  themes: Theme[];
-  imageUrl?: string;
-  year?: number;
-  context?: string;
-  isVerified: boolean;
-  philosopher?: {
-    id: string;
-    name: string;
-    nameEn: string;
-    portrait: string;
-  };
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -66,30 +28,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const db = getDatabase();
-  const { path } = req.query;
+  
+  // Get the full path from the URL
+  const url = new URL(req.url!, `https://${req.headers.host}`);
+  const pathname = url.pathname;
+  
+  // Remove /api prefix
+  const path = pathname.replace(/^\/api\//, '');
 
   try {
-    // Route handling
-    if (path === 'health') {
+    // Health check
+    if (path === 'health' || path === '') {
       return res.json({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
+    // Random quote
     if (path === 'quotes/random') {
-      const { theme, philosopherId } = req.query;
-      let rows;
+      const theme = url.searchParams.get('theme');
+      const philosopherId = url.searchParams.get('philosopherId');
       
+      let rows;
       if (theme && philosopherId) {
-        rows = await db`SELECT * FROM quotes WHERE themes LIKE ${'%"' + theme + '"%'} AND philosopher_id = ${philosopherId as string} ORDER BY RANDOM() LIMIT 1`;
+        rows = await db`SELECT * FROM quotes WHERE themes LIKE ${'%"' + theme + '"%'} AND philosopher_id = ${philosopherId} ORDER BY RANDOM() LIMIT 1`;
       } else if (theme) {
         rows = await db`SELECT * FROM quotes WHERE themes LIKE ${'%"' + theme + '"%'} ORDER BY RANDOM() LIMIT 1`;
       } else if (philosopherId) {
-        rows = await db`SELECT * FROM quotes WHERE philosopher_id = ${philosopherId as string} ORDER BY RANDOM() LIMIT 1`;
+        rows = await db`SELECT * FROM quotes WHERE philosopher_id = ${philosopherId} ORDER BY RANDOM() LIMIT 1`;
       } else {
         rows = await db`SELECT * FROM quotes ORDER BY RANDOM() LIMIT 1`;
       }
       
       const row = rows[0];
-      
       if (!row) {
         return res.status(404).json({ success: false, error: 'No quotes found' });
       }
@@ -107,9 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           source: row.source,
           sourceWork: row.source_work,
           themes: JSON.parse(row.themes),
-          imageUrl: row.image_url,
-          year: row.year,
-          context: row.context,
           isVerified: row.is_verified === 1,
           philosopher: philosopher ? {
             id: philosopher.id,
@@ -121,10 +87,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    if (path === 'quotes' && !req.query.id) {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
-      const { theme, philosopherId } = req.query;
+    // Quotes themes
+    if (path === 'quotes/themes') {
+      const rows = await db`SELECT DISTINCT themes FROM quotes`;
+      const themeSet = new Set<string>();
+      rows.forEach((row: any) => {
+        JSON.parse(row.themes).forEach((t: string) => themeSet.add(t));
+      });
+      return res.json({ success: true, data: Array.from(themeSet).sort() });
+    }
+
+    // Quotes list
+    if (path === 'quotes') {
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const limit = Math.min(parseInt(url.searchParams.get('limit') || '10'), 50);
+      const theme = url.searchParams.get('theme');
+      const philosopherId = url.searchParams.get('philosopherId');
       
       let whereClause = '1=1';
       const params: string[] = [];
@@ -135,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       if (philosopherId) {
         whereClause += ` AND philosopher_id = $${params.length + 1}`;
-        params.push(philosopherId as string);
+        params.push(philosopherId);
       }
       
       const countResult = await db.unsafe(`SELECT COUNT(*) as count FROM quotes WHERE ${whereClause}`, params);
@@ -153,9 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id: row.id,
           philosopherId: row.philosopher_id,
           content: row.content,
-          contentOriginal: row.content_original,
           source: row.source,
-          sourceWork: row.source_work,
           themes: JSON.parse(row.themes),
           isVerified: row.is_verified === 1,
         })),
@@ -163,18 +139,84 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    if (path === 'quotes/themes') {
-      const rows = await db`SELECT DISTINCT themes FROM quotes`;
-      const themeSet = new Set<string>();
-      rows.forEach((row: any) => {
-        const themes = JSON.parse(row.themes);
-        themes.forEach((t: string) => themeSet.add(t));
+    // Quote by ID
+    if (path.startsWith('quotes/') && !path.includes('random') && !path.includes('themes') && !path.includes('philosopher') && !path.includes('theme')) {
+      const id = path.split('/')[1];
+      const rows = await db`SELECT * FROM quotes WHERE id = ${id}`;
+      const row = rows[0];
+      
+      if (!row) {
+        return res.status(404).json({ success: false, error: 'Quote not found' });
+      }
+      
+      return res.json({
+        success: true,
+        data: {
+          id: row.id,
+          philosopherId: row.philosopher_id,
+          content: row.content,
+          source: row.source,
+          themes: JSON.parse(row.themes),
+          isVerified: row.is_verified === 1,
+        },
       });
-      return res.json({ success: true, data: Array.from(themeSet).sort() });
     }
 
+    // Quotes by philosopher
+    if (path.startsWith('quotes/philosopher/')) {
+      const philosopherId = path.split('/')[2];
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const limit = Math.min(parseInt(url.searchParams.get('limit') || '10'), 50);
+      
+      const countResult = await db`SELECT COUNT(*) as count FROM quotes WHERE philosopher_id = ${philosopherId}`;
+      const total = Number(countResult[0].count);
+      
+      const offset = (page - 1) * limit;
+      const rows = await db`SELECT * FROM quotes WHERE philosopher_id = ${philosopherId} ORDER BY year ASC LIMIT ${limit} OFFSET ${offset}`;
+      
+      return res.json({
+        success: true,
+        data: rows.map((row: any) => ({
+          id: row.id,
+          philosopherId: row.philosopher_id,
+          content: row.content,
+          source: row.source,
+          themes: JSON.parse(row.themes),
+          isVerified: row.is_verified === 1,
+        })),
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      });
+    }
+
+    // Quotes by theme
+    if (path.startsWith('quotes/theme/')) {
+      const theme = path.split('/')[2];
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const limit = Math.min(parseInt(url.searchParams.get('limit') || '10'), 50);
+      
+      const countResult = await db`SELECT COUNT(*) as count FROM quotes WHERE themes LIKE ${'%"' + theme + '"%'}`;
+      const total = Number(countResult[0].count);
+      
+      const offset = (page - 1) * limit;
+      const rows = await db`SELECT * FROM quotes WHERE themes LIKE ${'%"' + theme + "%'"} ORDER BY year ASC LIMIT ${limit} OFFSET ${offset}`;
+      
+      return res.json({
+        success: true,
+        data: rows.map((row: any) => ({
+          id: row.id,
+          philosopherId: row.philosopher_id,
+          content: row.content,
+          source: row.source,
+          themes: JSON.parse(row.themes),
+          isVerified: row.is_verified === 1,
+        })),
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      });
+    }
+
+    // Philosophers list
     if (path === 'philosophers') {
-      const { school } = req.query;
+      const school = url.searchParams.get('school');
       let rows;
       if (school) {
         rows = await db`SELECT * FROM philosophers WHERE school LIKE ${'%' + school + '%'} ORDER BY birth_year`;
@@ -201,7 +243,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    if (path && path.startsWith('philosophers/')) {
+    // Philosopher by ID
+    if (path.startsWith('philosophers/')) {
       const id = path.split('/')[1];
       const rows = await db`SELECT * FROM philosophers WHERE id = ${id}`;
       const row = rows[0];
@@ -229,57 +272,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           portrait: row.portrait,
           quoteCount: Number(quoteCount[0].count),
         },
-      });
-    }
-
-    if (path && path.startsWith('quotes/philosopher/')) {
-      const philosopherId = path.split('/')[2];
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
-      
-      const countResult = await db`SELECT COUNT(*) as count FROM quotes WHERE philosopher_id = ${philosopherId}`;
-      const total = Number(countResult[0].count);
-      
-      const offset = (page - 1) * limit;
-      const rows = await db`SELECT * FROM quotes WHERE philosopher_id = ${philosopherId} ORDER BY year ASC LIMIT ${limit} OFFSET ${offset}`;
-      
-      return res.json({
-        success: true,
-        data: rows.map((row: any) => ({
-          id: row.id,
-          philosopherId: row.philosopher_id,
-          content: row.content,
-          contentOriginal: row.content_original,
-          source: row.source,
-          themes: JSON.parse(row.themes),
-          isVerified: row.is_verified === 1,
-        })),
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      });
-    }
-
-    if (path && path.startsWith('quotes/theme/')) {
-      const theme = path.split('/')[2];
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
-      
-      const countResult = await db`SELECT COUNT(*) as count FROM quotes WHERE themes LIKE ${'%"' + theme + '"%'}`;
-      const total = Number(countResult[0].count);
-      
-      const offset = (page - 1) * limit;
-      const rows = await db`SELECT * FROM quotes WHERE themes LIKE ${'%"' + theme + "%'"} ORDER BY year ASC LIMIT ${limit} OFFSET ${offset}`;
-      
-      return res.json({
-        success: true,
-        data: rows.map((row: any) => ({
-          id: row.id,
-          philosopherId: row.philosopher_id,
-          content: row.content,
-          source: row.source,
-          themes: JSON.parse(row.themes),
-          isVerified: row.is_verified === 1,
-        })),
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       });
     }
 
