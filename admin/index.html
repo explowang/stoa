@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stoa 管理后台</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Serif SC', serif; background: #faf9f5; color: #2a2926; min-height: 100vh; }
+    
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+    
+    h1 { font-size: 28px; margin-bottom: 30px; color: #2a2926; }
+    h2 { font-size: 20px; margin: 30px 0 15px; color: #4f4d46; border-bottom: 1px solid #e7e6e3; padding-bottom: 10px; }
+    
+    .login-box { max-width: 400px; margin: 100px auto; text-align: center; }
+    .login-box input { width: 100%; padding: 12px; border: 1px solid #d1cfc9; font-size: 16px; margin-bottom: 15px; font-family: inherit; }
+    .login-box button { width: 100%; padding: 12px; background: #2a2926; color: white; border: none; font-size: 16px; cursor: pointer; font-family: inherit; }
+    .login-box button:hover { background: #4f4d46; }
+    
+    .btn { padding: 8px 16px; border: 1px solid #d1cfc9; background: white; cursor: pointer; font-family: inherit; font-size: 14px; }
+    .btn:hover { background: #f5f4f0; }
+    .btn-primary { background: #2a2926; color: white; border-color: #2a2926; }
+    .btn-primary:hover { background: #4f4d46; }
+    .btn-danger { background: #c55d3c; color: white; border-color: #c55d3c; }
+    .btn-danger:hover { background: #d97757; }
+    
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #605e55; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px; border: 1px solid #d1cfc9; font-family: inherit; font-size: 14px; }
+    .form-group textarea { min-height: 100px; resize: vertical; }
+    
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    
+    .card { background: white; border: 1px solid #e7e6e3; padding: 20px; margin-bottom: 15px; }
+    
+    .quote-item { display: flex; justify-content: space-between; align-items: start; padding: 15px; border-bottom: 1px solid #f5f4f0; }
+    .quote-item:last-child { border-bottom: none; }
+    .quote-content { flex: 1; }
+    .quote-content p { margin-bottom: 5px; }
+    .quote-source { font-size: 13px; color: #928e81; }
+    .quote-actions { display: flex; gap: 8px; }
+    
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tab { padding: 10px 20px; border: 1px solid #d1cfc9; background: white; cursor: pointer; font-family: inherit; }
+    .tab.active { background: #2a2926; color: white; border-color: #2a2926; }
+    
+    .hidden { display: none; }
+    
+    .message { padding: 10px 15px; margin-bottom: 15px; border-radius: 4px; }
+    .message.success { background: #e9ebe2; color: #5e7048; }
+    .message.error { background: #fbe8e3; color: #c55d3c; }
+    
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
+    .stat-card { background: white; border: 1px solid #e7e6e3; padding: 20px; text-align: center; }
+    .stat-number { font-size: 32px; font-weight: 600; color: #2a2926; }
+    .stat-label { font-size: 14px; color: #928e81; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Login -->
+    <div id="login-view" class="login-box">
+      <h1>Stoa 管理后台</h1>
+      <p style="margin-bottom: 20px; color: #605e55;">请输入管理密码</p>
+      <input type="password" id="password-input" placeholder="管理密码" onkeypress="if(event.key==='Enter')login()">
+      <button onclick="login()">登录</button>
+      <p id="login-error" style="color: #c55d3c; margin-top: 10px;"></p>
+    </div>
+
+    <!-- Main -->
+    <div id="main-view" class="container hidden">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h1>Stoa 管理后台</h1>
+        <button class="btn" onclick="logout()">退出</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-number" id="stat-quotes">-</div>
+          <div class="stat-label">语录总数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="stat-philosophers">-</div>
+          <div class="stat-label">哲学家</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="stat-themes">-</div>
+          <div class="stat-label">主题分类</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('quotes')">语录管理</button>
+        <button class="tab" onclick="showTab('add-quote')">添加语录</button>
+      </div>
+
+      <div id="message-box"></div>
+
+      <!-- Quotes List -->
+      <div id="tab-quotes">
+        <div class="card">
+          <div id="quotes-list">加载中...</div>
+        </div>
+      </div>
+
+      <!-- Add Quote Form -->
+      <div id="tab-add-quote" class="hidden">
+        <div class="card">
+          <h2 style="margin-top: 0;">添加新语录</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>语录ID (如: plato-006)</label>
+              <input type="text" id="q-id" placeholder="philosopher-number">
+            </div>
+            <div class="form-group">
+              <label>哲学家</label>
+              <select id="q-philosopher"></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>语录内容</label>
+            <textarea id="q-content" placeholder="输入语录内容..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>出处</label>
+              <input type="text" id="q-source" placeholder="如: 《理想国》">
+            </div>
+            <div class="form-group">
+              <label>主题 (逗号分隔)</label>
+              <input type="text" id="q-themes" placeholder="如: wisdom, truth">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addQuote()">添加语录</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    let authToken = '';
+
+    // Available themes
+    const THEMES = {
+      'death': '死亡', 'happiness': '幸福', 'friendship': '友谊',
+      'self-knowledge': '自我认知', 'fate': '命运', 'virtue': '美德',
+      'wisdom': '智慧', 'justice': '正义', 'truth': '真理',
+      'education': '教育', 'politics': '政治', 'ethics': '伦理'
+    };
+
+    function showMessage(text, type = 'success') {
+      const box = document.getElementById('message-box');
+      box.innerHTML = `<div class="message ${type}">${text}</div>`;
+      setTimeout(() => box.innerHTML = '', 3000);
+    }
+
+    async function login() {
+      const password = document.getElementById('password-input').value;
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        if (res.ok) {
+          authToken = password;
+          document.getElementById('login-view').classList.add('hidden');
+          document.getElementById('main-view').classList.remove('hidden');
+          loadStats();
+          loadQuotes();
+          loadPhilosophers();
+        }
+      } catch (e) {
+        document.getElementById('login-error').textContent = '连接失败';
+      }
+    }
+
+    function logout() {
+      authToken = '';
+      document.getElementById('login-view').classList.remove('hidden');
+      document.getElementById('main-view').classList.add('hidden');
+      document.getElementById('password-input').value = '';
+    }
+
+    async function apiCall(path, method = 'GET', body = null) {
+      const options = {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        }
+      };
+      if (body) options.body = JSON.stringify(body);
+      const res = await fetch(`${API_BASE}${path}`, options);
+      return res.json();
+    }
+
+    async function loadStats() {
+      const quotes = await apiCall('/quotes?limit=1');
+      const philosophers = await apiCall('/philosophers');
+      const themes = await apiCall('/quotes/themes');
+      
+      document.getElementById('stat-quotes').textContent = quotes.pagination?.total || 0;
+      document.getElementById('stat-philosophers').textContent = philosophers.data?.length || 0;
+      document.getElementById('stat-themes').textContent = themes.data?.length || 0;
+    }
+
+    async function loadQuotes() {
+      const result = await apiCall('/quotes?limit=50');
+      const list = document.getElementById('quotes-list');
+      
+      if (!result.data || result.data.length === 0) {
+        list.innerHTML = '<p style="text-align: center; color: #928e81;">暂无语录</p>';
+        return;
+      }
+
+      list.innerHTML = result.data.map(q => `
+        <div class="quote-item">
+          <div class="quote-content">
+            <p>"${q.content}"</p>
+            <p class="quote-source">${q.source} | ${q.themes.map(t => THEMES[t] || t).join(', ')}</p>
+          </div>
+          <div class="quote-actions">
+            <button class="btn btn-danger" onclick="deleteQuote('${q.id}')">删除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadPhilosophers() {
+      const result = await apiCall('/philosophers');
+      const select = document.getElementById('q-philosopher');
+      select.innerHTML = result.data.map(p => 
+        `<option value="${p.id}">${p.name} (${p.nameEn})</option>`
+      ).join('');
+    }
+
+    function showTab(name) {
+      document.querySelectorAll('.tabs .tab').forEach((t, i) => {
+        t.classList.toggle('active', (name === 'quotes' && i === 0) || (name === 'add-quote' && i === 1));
+      });
+      document.getElementById('tab-quotes').classList.toggle('hidden', name !== 'quotes');
+      document.getElementById('tab-add-quote').classList.toggle('hidden', name !== 'add-quote');
+    }
+
+    async function addQuote() {
+      const id = document.getElementById('q-id').value.trim();
+      const philosopherId = document.getElementById('q-philosopher').value;
+      const content = document.getElementById('q-content').value.trim();
+      const source = document.getElementById('q-source').value.trim();
+      const themesStr = document.getElementById('q-themes').value.trim();
+      
+      if (!id || !content || !source) {
+        showMessage('请填写必要字段', 'error');
+        return;
+      }
+      
+      const themes = themesStr ? themesStr.split(',').map(t => t.trim()) : [];
+      
+      const result = await apiCall('/quotes', 'POST', { id, philosopherId, content, source, themes });
+      
+      if (result.success) {
+        showMessage('语录添加成功');
+        document.getElementById('q-id').value = '';
+        document.getElementById('q-content').value = '';
+        document.getElementById('q-source').value = '';
+        document.getElementById('q-themes').value = '';
+        loadStats();
+        loadQuotes();
+      } else {
+        showMessage(result.error || '添加失败', 'error');
+      }
+    }
+
+    async function deleteQuote(id) {
+      if (!confirm('确定要删除这条语录吗？')) return;
+      
+      const result = await apiCall(`/quotes/${id}`, 'DELETE');
+      
+      if (result.success) {
+        showMessage('语录已删除');
+        loadStats();
+        loadQuotes();
+      } else {
+        showMessage(result.error || '删除失败', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

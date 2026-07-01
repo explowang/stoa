@@ -18,32 +18,43 @@ function getDatabase(): postgres.Sql {
   return sql;
 }
 
+// Simple auth check
+function checkAuth(req: VercelRequest): boolean {
+  const authHeader = req.headers.authorization;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'stoa2024';
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return false;
+  }
+  
+  const token = authHeader.slice(7);
+  return token === adminPassword;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   const db = getDatabase();
-  
-  // Get the full path from the URL
   const url = new URL(req.url!, `https://${req.headers.host}`);
   const pathname = url.pathname;
-  
-  // Remove /api prefix
   const path = pathname.replace(/^\/api\//, '');
 
   try {
-    // Health check
+    // Health check (no auth required)
     if (path === 'health' || path === '') {
       return res.json({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
+    // ============ READ OPERATIONS (No auth required) ============
+
     // Random quote
-    if (path === 'quotes/random') {
+    if (path === 'quotes/random' && req.method === 'GET') {
       const theme = url.searchParams.get('theme');
       const philosopherId = url.searchParams.get('philosopherId');
       
@@ -88,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Quotes themes
-    if (path === 'quotes/themes') {
+    if (path === 'quotes/themes' && req.method === 'GET') {
       const rows = await db`SELECT DISTINCT themes FROM quotes`;
       const themeSet = new Set<string>();
       rows.forEach((row: any) => {
@@ -98,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Quotes list
-    if (path === 'quotes') {
+    if (path === 'quotes' && req.method === 'GET') {
       const page = parseInt(url.searchParams.get('page') || '1');
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '10'), 50);
       const theme = url.searchParams.get('theme');
@@ -140,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Quote by ID
-    if (path.startsWith('quotes/') && !path.includes('random') && !path.includes('themes') && !path.includes('philosopher') && !path.includes('theme')) {
+    if (path.startsWith('quotes/') && !path.includes('random') && !path.includes('themes') && !path.includes('philosopher') && !path.includes('theme') && req.method === 'GET') {
       const id = path.split('/')[1];
       const rows = await db`SELECT * FROM quotes WHERE id = ${id}`;
       const row = rows[0];
@@ -163,7 +174,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Quotes by philosopher
-    if (path.startsWith('quotes/philosopher/')) {
+    if (path.startsWith('quotes/philosopher/') && req.method === 'GET') {
       const philosopherId = path.split('/')[2];
       const page = parseInt(url.searchParams.get('page') || '1');
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '10'), 50);
@@ -189,7 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Quotes by theme
-    if (path.startsWith('quotes/theme/')) {
+    if (path.startsWith('quotes/theme/') && req.method === 'GET') {
       const theme = path.split('/')[2];
       const page = parseInt(url.searchParams.get('page') || '1');
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '10'), 50);
@@ -215,7 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Philosophers list
-    if (path === 'philosophers') {
+    if (path === 'philosophers' && req.method === 'GET') {
       const school = url.searchParams.get('school');
       let rows;
       if (school) {
@@ -244,7 +255,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Philosopher by ID
-    if (path.startsWith('philosophers/')) {
+    if (path.startsWith('philosophers/') && !path.includes('quotes') && req.method === 'GET') {
       const id = path.split('/')[1];
       const rows = await db`SELECT * FROM philosophers WHERE id = ${id}`;
       const row = rows[0];
@@ -273,6 +284,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           quoteCount: Number(quoteCount[0].count),
         },
       });
+    }
+
+    // ============ WRITE OPERATIONS (Auth required) ============
+
+    // Check auth for write operations
+    if (['POST', 'PUT', 'DELETE'].includes(req.method || '')) {
+      if (!checkAuth(req)) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+    }
+
+    // Create quote
+    if (path === 'quotes' && req.method === 'POST') {
+      const { id, philosopherId, content, contentOriginal, source, sourceWork, themes } = req.body;
+      
+      if (!id || !philosopherId || !content || !source) {
+        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      }
+      
+      await db`
+        INSERT INTO quotes (id, philosopher_id, content, content_original, source, source_work, themes, is_verified)
+        VALUES (${id}, ${philosopherId}, ${content}, ${contentOriginal || null}, ${source}, ${sourceWork || null}, ${JSON.stringify(themes || [])}, ${1})
+      `;
+      
+      return res.json({ success: true, message: 'Quote created' });
+    }
+
+    // Update quote
+    if (path.startsWith('quotes/') && req.method === 'PUT') {
+      const id = path.split('/')[1];
+      const { content, source, themes } = req.body;
+      
+      await db`
+        UPDATE quotes 
+        SET content = ${content || ''}, source = ${source || ''}, themes = ${JSON.stringify(themes || [])}
+        WHERE id = ${id}
+      `;
+      
+      return res.json({ success: true, message: 'Quote updated' });
+    }
+
+    // Delete quote
+    if (path.startsWith('quotes/') && req.method === 'DELETE') {
+      const id = path.split('/')[1];
+      await db`DELETE FROM quotes WHERE id = ${id}`;
+      return res.json({ success: true, message: 'Quote deleted' });
+    }
+
+    // Create philosopher
+    if (path === 'philosophers' && req.method === 'POST') {
+      const { id, name, nameEn, nameGreek, birthYear, deathYear, school, schoolEn, region, biography, coreIdeas } = req.body;
+      
+      if (!id || !name || !nameEn || !birthYear || !deathYear || !school) {
+        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      }
+      
+      await db`
+        INSERT INTO philosophers (id, name, name_en, name_greek, birth_year, death_year, school, school_en, region, biography, core_ideas, portrait)
+        VALUES (${id}, ${name}, ${nameEn}, ${nameGreek || null}, ${birthYear}, ${deathYear}, ${school}, ${schoolEn || ''}, ${region || ''}, ${biography || ''}, ${JSON.stringify(coreIdeas || [])}, ${'/assets/images/' + id + '.webp'})
+      `;
+      
+      return res.json({ success: true, message: 'Philosopher created' });
     }
 
     return res.status(404).json({ success: false, error: 'Not found' });
