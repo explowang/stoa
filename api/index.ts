@@ -88,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           sourceWork: row.source_work,
           themes: JSON.parse(row.themes),
           isVerified: row.is_verified === 1,
+          imageUrl: row.image_url,
           philosopher: philosopher ? {
             id: philosopher.id,
             name: philosopher.name,
@@ -145,6 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           source: row.source,
           themes: JSON.parse(row.themes),
           isVerified: row.is_verified === 1,
+          imageUrl: row.image_url,
         })),
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       });
@@ -169,6 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           source: row.source,
           themes: JSON.parse(row.themes),
           isVerified: row.is_verified === 1,
+          imageUrl: row.image_url,
         },
       });
     }
@@ -194,6 +197,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           source: row.source,
           themes: JSON.parse(row.themes),
           isVerified: row.is_verified === 1,
+          imageUrl: row.image_url,
         })),
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       });
@@ -220,6 +224,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           source: row.source,
           themes: JSON.parse(row.themes),
           isVerified: row.is_verified === 1,
+          imageUrl: row.image_url,
         })),
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       });
