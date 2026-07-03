@@ -1,0 +1,45 @@
+{
+  "envId": "YOUR_ENV_ID",
+  "framework": {
+    "plugins": {
+      "client": {
+        "use": "@cloudbase/framework-plugin-website",
+        "inputs": {
+          "buildCommand": "cd client && npm install && npm run build",
+          "outputPath": "client/dist",
+          "cloudPath": "/"
+        }
+      },
+      "api": {
+        "use": "@cloudbase/framework-plugin-function",
+        "inputs": {
+          "functionRootPath": "server",
+          "functions": [
+            {
+              "name": "stoa-api",
+              "runtime": "Nodejs20",
+              "entry": "dist/cloudbase.js",
+              "buildCommand": "npm run build",
+              "timeout": 30,
+              "envVariables": {
+                "NODE_ENV": "production",
+                "DATABASE_URL": ""
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "function": "stoa-api",
+      "method": "GET|POST|PUT|DELETE|OPTIONS|HEAD"
+    },
+    {
+      "source": "/(.*)",
+      "static": true
+    }
+  ]
+}

@@ -24,8 +24,9 @@ app.get('/health', (_req, res) => {
 app.use('/api/quotes', quotesRoutes);
 app.use('/api/philosophers', philosophersRoutes);
 
-// Serve static files in production
-if (config.nodeEnv === 'production') {
+// Serve static files in production (not on CloudBase, which handles static hosting separately)
+const isCloudBase = !!process.env.TENCENTCLOUD_RUNENV || !!process.env.SCF_NAMESPACE;
+if (config.nodeEnv === 'production' && !isCloudBase) {
   const clientDist = path.resolve(__dirname, '../../client/dist');
   app.use(express.static(clientDist));
   app.get('*', (_req, res) => {
@@ -37,33 +38,59 @@ if (config.nodeEnv === 'production') {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Initialize database and start server
-async function start() {
-  try {
+// Initialize database lazily
+let dbInitialized = false;
+async function ensureDb() {
+  if (!dbInitialized) {
     await initializeDatabase();
+    dbInitialized = true;
     console.log('Database initialized');
-
-    app.listen(config.port, config.host, () => {
-      console.log(`Server running on http://${config.host}:${config.port}`);
-      console.log(`Environment: ${config.nodeEnv}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
   }
 }
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down...');
-  await closeDatabase();
-  process.exit(0);
+// Ensure DB is ready before handling requests
+app.use(async (_req: any, res: any, next: any) => {
+  if (!dbInitialized) {
+    try {
+      await ensureDb();
+    } catch (error) {
+      console.error('Database init failed:', error);
+      return res.status(500).json({ success: false, error: 'Database initialization failed' });
+    }
+  }
+  next();
 });
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down...');
-  await closeDatabase();
-  process.exit(0);
-});
+export { app, ensureDb };
 
-start();
+// Start server only when run directly (not imported as CloudBase function)
+const isDirectRun = require.main === module;
+if (isDirectRun) {
+  async function start() {
+    try {
+      await ensureDb();
+      app.listen(config.port, config.host, () => {
+        console.log(`Server running on http://${config.host}:${config.port}`);
+        console.log(`Environment: ${config.nodeEnv}`);
+      });
+    } catch (error) {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    console.log('SIGTERM received, shutting down...');
+    await closeDatabase();
+    process.exit(0);
+  });
+
+  process.on('SIGINT', async () => {
+    console.log('SIGINT received, shutting down...');
+    await closeDatabase();
+    process.exit(0);
+  });
+
+  start();
+}
