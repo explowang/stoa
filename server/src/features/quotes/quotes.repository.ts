@@ -84,7 +84,7 @@ export const quotesRepository = {
     );
     
     return {
-      quotes: (rows as QuoteRow[]).map(rowToQuote),
+      quotes: (rows as unknown as QuoteRow[]).map(rowToQuote),
       total,
     };
   },
@@ -108,7 +108,7 @@ export const quotesRepository = {
     const db = getDatabase();
     const rows = await db`SELECT DISTINCT themes FROM quotes`;
     const themeSet = new Set<string>();
-    (rows as { themes: string }[]).forEach(row => {
+    (rows as unknown as { themes: string }[]).forEach(row => {
       const themes = JSON.parse(row.themes) as Theme[];
       themes.forEach(t => themeSet.add(t));
     });

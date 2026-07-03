@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import { config } from './config';
 import { logger } from './shared/middleware/logger';
@@ -23,6 +24,15 @@ app.get('/health', (_req, res) => {
 app.use('/api/quotes', quotesRoutes);
 app.use('/api/philosophers', philosophersRoutes);
 
+// Serve static files in production
+if (config.nodeEnv === 'production') {
+  const clientDist = path.resolve(__dirname, '../../client/dist');
+  app.use(express.static(clientDist));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
+
 // Error handling
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -33,8 +43,8 @@ async function start() {
     await initializeDatabase();
     console.log('Database initialized');
 
-    app.listen(config.port, () => {
-      console.log(`Server running on http://localhost:${config.port}`);
+    app.listen(config.port, config.host, () => {
+      console.log(`Server running on http://${config.host}:${config.port}`);
       console.log(`Environment: ${config.nodeEnv}`);
     });
   } catch (error) {

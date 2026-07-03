@@ -37,20 +37,20 @@ export const philosophersRepository = {
   async findAll(): Promise<Philosopher[]> {
     const db = getDatabase();
     const rows = await db`SELECT * FROM philosophers ORDER BY birth_year`;
-    return (rows as PhilosopherRow[]).map(rowToPhilosopher);
+    return (rows as unknown as PhilosopherRow[]).map(rowToPhilosopher);
   },
 
   async findById(id: string): Promise<Philosopher | null> {
     const db = getDatabase();
     const rows = await db`SELECT * FROM philosophers WHERE id = ${id}`;
-    const row = rows[0] as PhilosopherRow | undefined;
+    const row = rows[0] as unknown as PhilosopherRow | undefined;
     return row ? rowToPhilosopher(row) : null;
   },
 
   async findBySchool(school: string): Promise<Philosopher[]> {
     const db = getDatabase();
     const rows = await db`SELECT * FROM philosophers WHERE school LIKE ${'%' + school + '%'} ORDER BY birth_year`;
-    return (rows as PhilosopherRow[]).map(rowToPhilosopher);
+    return (rows as unknown as PhilosopherRow[]).map(rowToPhilosopher);
   },
 
   async getQuoteCount(philosopherId: string): Promise<number> {
